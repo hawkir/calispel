@@ -23,14 +23,13 @@ the occam programming language."
 	       (:file "null-queue"
                 :depends-on ("package"))
 	       ;; Testing.
-	       (:file "test"
-		:depends-on ("core"
-			     "basic"
-			     "alt"
-			     "package"))
+	       ;; (:file "test"
+	       ;;  :depends-on ("core"
+	       ;;  	     "basic"
+	       ;;  	     "alt"
+	       ;;  	     "package"))
 	       ;; Package definition.
                (:file "package"))
   :depends-on ("jpl-queues"
-	       "eager-future"
 	       "bordeaux-threads"
 	       (:version "jpl-util" "0.2")))

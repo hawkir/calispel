@@ -242,10 +242,11 @@ Must be called with *LOCK* held."
       ;; EAGER-FUTURE explicitly leaves the dynamic environment
       ;; unpsecified.
       (let ((lock *lock*))
-	(eager-future:pexec
-	  (sleep timeout)
-	  (bt:with-lock-held (lock)
-	    (bt:condition-notify (selection-cv alternation))))))
+	(bt:make-thread
+         (lambda ()
+           (sleep timeout)
+           (bt:with-lock-held (lock)
+             (bt:condition-notify (selection-cv alternation)))))))
     (labels ((elapsed-time ()
 	       (- (jpl-util:get-reasonable-real-time)
 		  start-time))
