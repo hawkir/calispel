@@ -1,0 +1,606 @@
+<?xml version="1.0"?>
+<!DOCTYPE article PUBLIC "-//OASIS//DTD DocBook XML V4.5//EN"
+          "http://www.oasis-open.org/docbook/xml/4.5/docbookx.dtd">
+<article>
+  <artheader id="top">
+    <title>Calispel</title>
+    <author><firstname>J.P.</firstname> <surname>Larocque</surname></author>
+  </artheader>
+  
+  <section id="sec-intro">
+    <title>Introduction</title>
+    
+    <para>Calispel is a Common Lisp library for thread-safe
+      message-passing channels, in the style of the occam programming
+      language.</para>
+    
+    <para>Calispel channels let one thread communicate with another,
+      facilitating unidirectional communication of any Lisp object.
+      Channels may be unbuffered, where a sender waits for a receiver
+      (or vice versa) before either operation can continue, or
+      channels may be buffered with flexible policy options.</para>
+    
+    <para>Because sending and receiving on a channel may block, either
+      operation can time out after a specified amount of time.</para>
+    
+    <para>A syntax for alternation is provided (like <code>ALT</code>
+      in occam, or Unix <code>select()</code>): given a sequence of
+      operations, any or all of which may block, alternation selects
+      the first operation that doesn't block and executes associated
+      code.  Alternation can also time out, executing an "otherwise"
+      clause if no operation becomes available within a set amount of
+      time.</para>
+    
+    <para>Many CSP- and occam-style channel libraries offer features
+      like parallel execution (i.e. occam <code>PAR</code>).  Calispel
+      is a message-passing library, and as such leaves the role of
+      threading abstractions and utilities left to be filled by
+      perfectly good, complementary libraries such
+      as <ulink url="http://common-lisp.net/project/bordeaux-threads/">Bordeaux-Threads</ulink>
+      and <ulink url="http://common-lisp.net/project/eager-future/">Eager
+      Future</ulink>.</para>
+
+    <section id="sec-obtaining">
+      <title>Obtaining Calispel</title>
+      
+      <para>The latest version of Calispel, with accompanying
+      documentation, can be found at:
+      <ulink url="http://www.thoughtcrime.us/software/calispel/"/></para>
+      
+      <para>The most recent release is 0.1, released 2009-10-19.  It
+	depends on:
+	<simplelist type="inline">
+	  <member><ulink url="http://www.thoughtcrime.us/software/jpl-queues/">jpl-queues</ulink>
+	    0.1</member>
+	  <member><ulink url="http://www.thoughtcrime.us/software/cl-jpl-util/">cl-jpl-util</ulink>
+	    0.2</member>
+	  <member><ulink url="http://common-lisp.net/project/eager-future/">Eager Future</ulink>
+	    0.1</member>
+	  <member><ulink url="http://common-lisp.net/project/bordeaux-threads/">Bordeaux Threads</ulink></member>
+	</simplelist>
+	
+	<itemizedlist>
+	  <listitem><ulink url="http://www.thoughtcrime.us/software/calispel/calispel-0.1.tar.gz">calispel-0.1.tar.gz</ulink>:
+	    ASDF package</listitem>
+	  <listitem><ulink url="http://www.thoughtcrime.us/software/calispel/calispel-0.1.tar.gz.sign">calispel-0.1.tar.gz.sign</ulink>:
+            OpenPGP detached signature</listitem>
+	</itemizedlist>
+      </para>
+    
+      <para>I sign all my software with OpenPGP, key ID 0x80555CED7394F948,
+	fingerprint 2771 AF53 5D09 BDFB A8D0 BEF3 8055 5CED 7394 F948.</para>
+    </section>
+    
+    <section id="sec-copying">
+      <title>Copying</title>
+      
+      <para>The software and this document are licensed under
+	permissive, BSD-like terms, copied from the ISC
+	license:</para>
+      
+      <blockquote>
+	<para>Copyright &copy; 2009, Jean-Paul Guy Larocque</para>
+	
+	<para>Permission to use, copy, modify, and/or distribute this
+	  software for any purpose with or without fee is hereby
+	  granted, provided that the above copyright notice and this
+	  permission notice appear in all copies.</para>
+	
+	<para>THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR
+	  DISCLAIMS ALL WARRANTIES WITH REGARD TO THIS SOFTWARE
+	  INCLUDING ALL IMPLIED WARRANTIES OF MERCHANTABILITY AND
+	  FITNESS.  IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR ANY
+	  SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY
+	  DAMAGES WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR
+	  PROFITS, WHETHER IN AN ACTION OF CONTRACT, NEGLIGENCE OR
+	  OTHER TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH
+	  THE USE OR PERFORMANCE OF THIS SOFTWARE.</para>
+      </blockquote>
+      
+      <para>This software was directly derived from
+	"<ulink url="http://www.staff.ncl.ac.uk/roger.peppe/csp.tgz">csp.tgz</ulink>",
+	dated 2006-07-03, and published by Roger Peppe.  No copyright
+	notice giving attribution to Roger Peppe or any specific
+	licensing terms seem to have been included in that
+	version.</para>
+      
+      <para>That software was derived from "channel.c" of Plan 9
+	libthread:</para>
+      
+      <blockquote>
+	<para>Copyright &copy; 2005 Russ Cox, Massachusetts Institute
+	  of Technology</para>
+	
+	<para>Permission is hereby granted, free of charge, to any
+	  person obtaining a copy of this software and associated
+	  documentation files (the "Software"), to deal in the
+	  Software without restriction, including without limitation
+	  the rights to use, copy, modify, merge, publish, distribute,
+	  sublicense, and/or sell copies of the Software, and to
+	  permit persons to whom the Software is furnished to do so,
+	  subject to the following conditions:</para>
+	
+	<para>The above copyright notice and this permission notice
+	  shall be included in all copies or substantial portions of
+	  the Software.</para>
+	
+	<para>THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF
+	  ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO
+	  THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR
+	  PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS
+	  OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR
+	  OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR
+	  OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE
+	  SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+	  SOFTWARE.</para>
+      </blockquote>
+      
+      <para>That software contains parts derived from an earlier
+	library by Rob Pike, Sape Mullender, and Russ Cox:</para>
+      
+      <blockquote>
+	<para>Copyright &copy; 2003 by Lucent Technologies.</para>
+	
+	<para>Permission to use, copy, modify, and distribute this
+	  software for any purpose without fee is hereby granted,
+	  provided that this entire notice is included in all copies
+	  of any software which is or includes a copy or modification
+	  of this software and in all copies of the supporting
+	  documentation for such software.</para>
+	
+	<para>THIS SOFTWARE IS BEING PROVIDED "AS IS", WITHOUT ANY EXPRESS OR
+	  IMPLIED WARRANTY.  IN PARTICULAR, NEITHER THE AUTHORS NOR LUCENT
+	  TECHNOLOGIES MAKE ANY REPRESENTATION OR WARRANTY OF ANY KIND
+	  CONCERNING THE MERCHANTABILITY OF THIS SOFTWARE OR ITS FITNESS FOR
+	  ANY PARTICULAR PURPOSE.</para>
+      </blockquote>
+    </section>
+    
+    <section id="sec-contact">
+      <title>Contact Information</title>
+      
+      <para>The author welcomes feedback, questions, help requests,
+	and bug reports via e-mail: J.P. Larocque &lt;jpl-software at
+	thoughtcrime.us&gt;</para>
+    </section>
+  </section>
+  
+  <section id="sec-examples">
+    <title>Examples</title>
+    
+    <para>Create a channel with no buffering:</para>
+    
+    <informalexample>
+      <programlisting>(defparameter *chan*
+  (make-instance 'calispel:channel))</programlisting>
+    </informalexample>
+    
+    <para>In another thread, sleep for 1 second, then send the number
+      42 to the channel.  In the current thread, receive from the
+      channel.  At first, there will be no value available,
+      so <link linkend="sec-basic_io"><function>?</function></link>
+      will wait until the other thread sends the value.</para>
+    
+    <informalexample>
+      <programlisting>(progn
+  (eager-future:pexec
+    (sleep 1)
+    (calispel:! *chan* 42))
+  (calispel:? *chan*))
+=&gt; 42
+   T</programlisting>
+    </informalexample>
+    
+    <para>(<literal>42</literal> is the value received,
+      and <literal>T</literal> indicates that the receive was
+      successful&mdash;it did not time out.)</para>
+      
+    <para>Sending to the channel will also block without a waiting
+      receiver, because channels are unbuffered by default.  This will
+      attempt to send to the channel, then time out after 2
+      seconds:</para>
+    
+    <informalexample>
+      <programlisting>(calispel:! *chan* 'foo 2)
+=&gt; NIL</programlisting>
+    </informalexample>
+    
+    <para>(<literal>NIL</literal> indicates that the send was not
+      successful&mdash;it timed out.)</para>
+    
+    <para>Create a new channel that is buffered:</para>
+    
+    <informalexample>
+      <programlisting>(defparameter *chan*
+  (make-instance 'calispel:channel
+                 :buffer (make-instance '<ulink url="http://www.thoughtcrime.us/software/jpl-queues/#sec-classes-bounded_fifo_queue">jpl-queues:bounded-fifo-queue</ulink> :capacity 2)))</programlisting>
+    </informalexample>
+    
+    <para>This channel will accept up to two values that have not yet
+      been received before sends will block:</para>
+    
+    <informalexample>
+      <programlisting>(loop for i from 1
+      while (calispel:! *chan* i 0)
+      finally (format t "~&amp;Stopped before ~:R value.~&amp;" i))
+&gt;&gt; Stopped before third value.</programlisting>
+    </informalexample>
+    
+    <para>Now let's print them back out:</para>
+    
+    <informalexample>
+      <programlisting>(loop
+  (multiple-value-bind (value success?)
+      (calispel:? *chan* 0)
+    (when success?
+      (format t "~&amp;Value: ~S~&amp;" value))
+    (unless success?
+      (return))))
+&gt;&gt; Value: 1
+Value: 2</programlisting>
+    </informalexample>
+    
+    <para>Suppose that we have many channels that we're interested in
+      receiving from or sending to.  We can
+      use <link linkend="sec-alt_macros">alternation</link> to select
+      the first operation that is available, and then perform some
+      action associated with the operation:</para>
+    
+    <informalexample>
+      <programlisting>(let ((chan1 (make-instance 'calispel:channel)) ; chan1 goes unused
+      (chan2 (make-instance 'calispel:channel)))
+  (eager-future:pexec
+    (calispel:! chan2 42))
+  (calispel:pri-alt
+    ((calispel:? chan1)
+     ;; Nothing is sent to CHAN1, so it can't be ready.
+     (format t "~&amp;Got a value from CHAN1, but that should never happen.~&amp;"))
+    ((calispel:? chan2 value)
+     ;; CHAN2 has either had something sent to it, or it soon will,
+     ;; so this will execute.
+     (format t "~&amp;Got value from CHAN2: ~S~&amp;" value))))
+&gt;&gt; Got value from CHAN2: 42</programlisting>
+    </informalexample>
+    
+    <para>What if there's more than one operation that is immediately
+      possible?  <link linkend="sec-alt_macros"><function>PRI-ALT</function></link>
+      chooses the first one available...</para>
+    
+    <informalexample>
+      <programlisting>(let ((chan1 (make-instance 'calispel:channel))
+      (chan2 (make-instance 'calispel:channel)))
+  (eager-future:pexec
+    (calispel:! chan1 'foo))
+  (eager-future:pexec
+    (calispel:! chan2 'bar))
+  (sleep 1) ; Wait for both CHAN1 and CHAN2 to become ready.
+  (calispel:pri-alt
+    ((calispel:? chan1 value)
+     (format t "~&amp;Got value from CHAN1: ~S~&amp;" value))
+    ((calispel:? chan2 value)
+     (format t "~&amp;Got value from CHAN2: ~S~&amp;" value))))
+&gt;&gt; Got value from CHAN1: FOO</programlisting>
+    </informalexample>
+    
+    <para>...whereas <link linkend="sec-alt_macros"><function>FAIR-ALT</function></link>
+      chooses any of the available operations:</para>
+    
+    <informalexample>
+      <programlisting>(let ((chan1 (make-instance 'calispel:channel))
+      (chan2 (make-instance 'calispel:channel)))
+  (eager-future:pexec
+    (calispel:! chan1 'foo))
+  (eager-future:pexec
+    (calispel:! chan2 'bar))
+  (sleep 1) ; Wait for both CHAN1 and CHAN2 to become ready.
+  (calispel:fair-alt
+    ((calispel:? chan1 value)
+     (format t "~&amp;Got value from CHAN1: ~S~&amp;" value))
+    ((calispel:? chan2 value)
+     (format t "~&amp;Got value from CHAN2: ~S~&amp;" value))))
+&gt;&gt; Got value from CHAN1: FOO
+<emphasis>(or, determined randomly)</emphasis>
+&gt;&gt; Got value from CHAN2: BAR</programlisting>
+    </informalexample>
+    
+    <para>Just
+      like <link linkend="sec-basic_io"><function>?</function>
+      and <function>!</function></link>, <function>PRI-ALT</function>
+      and <function>FAIR-ALT</function> allow time outs to be
+      specified.  An <code>OTHERWISE</code> clause is executed if no
+      operation can be immediately performed, effectively putting a
+      time out of 0 on all the operations:</para>
+    
+    <informalexample>
+      <programlisting>(let ((chan1 (make-instance 'calispel:channel))
+      (chan2 (make-instance 'calispel:channel)))
+  (eager-future:pexec
+    (sleep 1)
+    (calispel:! chan1 'foo))
+  (calispel:pri-alt
+    ((calispel:? chan1 value)
+     (format t "~&amp;Got value from CHAN1: ~S~&amp;" value))
+    ((calispel:? chan2 value)
+     (format t "~&amp;Got value from CHAN2: ~S~&amp;" value))
+    (otherwise (format t "~&amp;Timed-out.~&amp;"))))
+&gt;&gt; Timed-out.</programlisting>
+      </informalexample>
+    
+    <para>You can also wait up to a certain amount of time before
+      executing the <code>OTHERWISE</code> clause:</para>
+    
+    <informalexample>
+      <programlisting>(let ((chan1 (make-instance 'calispel:channel))
+      (chan2 (make-instance 'calispel:channel)))
+  (eager-future:pexec
+    (sleep 1)
+    (calispel:! chan1 'foo))
+  (calispel:pri-alt
+    ((calispel:? chan1 value)
+     (format t "~&amp;Got value from CHAN1: ~S~&amp;" value))
+    ((calispel:? chan2 value)
+     (format t "~&amp;Got value from CHAN2: ~S~&amp;" value))
+    ((otherwise :timeout 5)
+     (format t "~&amp;Timed-out.~&amp;"))))
+&gt;&gt; Got value from CHAN1: FOO</programlisting>
+    </informalexample>
+    
+    <para>(Try increasing the <function>SLEEP</function> delay to 6
+      to see that the <function>PRI-ALT</function> will still time
+      out.)</para>
+  </section>
+  
+  <section id="sec-reference">
+    <title>Reference</title>
+    
+    <section id="sec-channel">
+      <title>The <type>CHANNEL</type> Class</title>
+      
+      <formalpara>
+	<title>Syntax</title>
+	
+	<synopsis>(<function>MAKE-INSTANCE</function> <literal>'CHANNEL</literal> &amp;key <varname>BUFFER</varname>)
+=&gt; <emphasis>(A <type>CHANNEL</type> instance.)</emphasis></synopsis>
+      </formalpara>
+      
+      <para>A channel is a medium that communicates messages from one
+	thread to another.</para>
+      
+      <para>All channels have a buffer.  The default buffer doesn't do
+	anything&mdash;it's always full and always empty.  It has no
+	storage.</para>
+      
+      <para><code>BUFFER</code> specifies
+	the <ulink url="http://www.thoughtcrime.us/software/jpl-queues/#sec-classes">jpl-queues
+	  queue</ulink> to buffer messages with.</para>
+      
+      <para>Sending to a channel blocks when there is no other thread
+	waiting to receive from it and there is no room in the buffer
+	(i.e. <ulink url="http://www.thoughtcrime.us/software/jpl-queues/#sec-api-full"><function>JPL-QUEUES:FULL?</function></ulink>
+	returns true).  Receiving from a channel blocks when there is
+	no other thread waiting to send to it and there are no objects
+	in the buffer
+	(i.e. <ulink url="http://www.thoughtcrime.us/software/jpl-queues/#sec-api-empty"><function>JPL-QUEUES:EMPTY?</function></ulink>
+	returns true).</para>
+      
+      <para>To improve throughput with better parallelism, a
+	meaningful buffer is recommended so that threads can perform
+	useful work instead of waiting on other threads.
+	Any jpl-queues queue may be used, but
+	note:</para>
+      
+      <itemizedlist>
+	<listitem>The queue need not be "synchronized" (an instance
+	  of <type>JPL-QUEUES:SYNCHRONIZED-QUEUE</type>): Calispel has
+	  its own synchronization, so external synchronization will only
+	  add overhead.</listitem>
+	
+	<listitem>The queue may not be shared with any other channels
+	  or be used for anything else, even if it's "synchronized."
+	  (Pedantic exception: if the queue strictly has no state,
+	  then it doesn't matter if it's shared.  The default "null"
+	  queue has no state, and it is shared.)</listitem>
+      </itemizedlist>
+    </section>
+    
+    <section id="sec-basic_io">
+      <title><function>?</function> and <function>!</function>:
+	Basic I/O Functions</title>
+      
+      <formalpara>
+	<title>Syntax</title>
+	
+	<synopsis>(<function>?</function> <varname>CHANNEL</varname> &amp;optional <varname>TIMEOUT</varname>)
+=&gt; <varname>VALUE</varname>
+   <varname>RECEIVED-OK?</varname></synopsis>
+
+	<synopsis>(<function>!</function> <varname>CHANNEL</varname> <varname>VALUE</varname> &amp;optional <varname>TIMEOUT</varname>)
+=&gt; <varname>SENT-OK?</varname></synopsis>
+      </formalpara>
+      
+      <para><function>?</function> receives a value
+	from <varname>CHANNEL</varname>, waiting up
+	to <varname>TIMEOUT</varname> seconds (a
+	non-negative <ulink url="http://www.lispworks.com/documentation/HyperSpec/Body/t_real.htm#real"><type>REAL</type></ulink>
+	number; or indefinitely if unspecified
+	or <literal>NIL</literal>).  If a value can be received before
+	the time out, the value and <literal>T</literal> (indicating
+	success) are returned.  Otherwise, <literal>NIL</literal>
+	and <literal>NIL</literal> (indicating failure) are
+	returned.</para>
+	
+      <para><function>!</function> sends <varname>VALUE</varname>
+	to <varname>CHANNEL</varname>, waiting up
+	to <varname>TIMEOUT</varname> seconds (a
+	non-negative <ulink url="http://www.lispworks.com/documentation/HyperSpec/Body/t_real.htm#real"><type>REAL</type></ulink>
+	number; or indefinitely if unspecified
+	or <literal>NIL</literal>).  If the value can be sent before
+	the time out, <literal>T</literal> (indicating success) is
+	returned.  Otherwise, <literal>NIL</literal> (indicating
+	failure) is returned.</para>
+    </section>
+    
+    <section id="sec-alt_macros">
+      <title><function>PRI-ALT</function>
+	and <function>FAIR-ALT</function>: Alternation Among Several
+	Operations</title>
+      
+      <formalpara>
+	<title>Syntax</title>
+	
+	<synopsis>(<function>PRI-ALT</function> operation-clause* [otherwise-clause])
+(<function>FAIR-ALT</function> operation-clause* [otherwise-clause])
+=&gt; <emphasis>(For either macro: the result of the final evaluated <varname>form</varname>,
+    or no values if no clause was executed.)</emphasis>
+
+operation-clause ::= (operation <varname>form</varname>*)
+otherwise-clause ::= ({otherwise | (otherwise [:timeout <varname>timeout</varname>])} <varname>form</varname>*)
+operation        ::= (? <varname>channel</varname> [<varname>lambda-list</varname> [<varname>condition</varname>]]) ; receive
+                   | (! <varname>channel</varname> <varname>value</varname> [<varname>condition</varname>])         ; send</synopsis>
+      </formalpara>
+
+      <para>Performs one of the given channel operations, choosing one
+	from the set of operations that first becomes available, then
+	evaluates each of the forms associated with the selected
+	operation.  If no operation can immediately be made, waits
+	until an operation is available (optionally up to a given
+	<code>timeout</code>).</para>
+      
+      <para>When there are multiple operations that can be immediately
+	carried-out, <function>PRI-ALT</function> selects the first
+	one listed, whereas <function>FAIR-ALT</function> chooses one
+	at random.</para>
+      
+      <variablelist>
+	<varlistentry>
+	  <term><varname>channel</varname></term>
+	  <listitem>
+	    <para>Evaluated to produce
+	      a <link linkend="sec-channel"><type>CHANNEL</type></link>
+	      to send to or receive from.  The channel forms
+	      associated with operations that do not pass the
+	      condition are not evaluated.</para>
+	  </listitem>
+	</varlistentry>
+
+	<varlistentry>
+	  <term><varname>lambda-list</varname></term>
+	  <listitem>
+	    <para>Either a symbol naming a variable to be bound to the
+	      value received from the channel, or a destructuring lambda
+	      list<footnote id="destructuring_lambda_list">
+		<para>See: Common Lisp HyperSpec,
+		sec. <ulink url="http://www.lispworks.com/documentation/HyperSpec/Body/03_de.htm">3.4.5
+		Destructuring Lambda Lists</ulink></para>
+	      </footnote> naming a set of variables to be bound to the
+	      destructured value received from the channel.  The
+	      bindings are visible to the associated forms.  If the
+	      value cannot be destructured according to the lambda
+	      list, an error is signalled.  Note that multiple receive
+	      clauses for the same channel with different
+	      destructuring lambda-lists <emphasis>cannot</emphasis>
+	      be used for pattern matching.</para>
+	  </listitem>
+	</varlistentry>
+	
+	<varlistentry>
+	  <term><varname>value</varname></term>
+	  <listitem>
+	    <para>An expression whose primary value is used as the
+	      message to send to the channel.  All value expressions
+	      are evaluated before selecting an operation, except for
+	      those associated with operations that do not pass the
+	      condition.</para>
+	  </listitem>
+	</varlistentry>
+
+	<varlistentry>
+	  <term><varname>condition</varname></term>
+	  <listitem>
+	    <para>Evaluated to produce a generalized boolean
+	      indicating whether the associated operation-clause
+	      should receive further consideration.  When condition is
+	      not given or its resulting value is true, the associated
+	      operation is kept for consideration.  When the resulting
+	      value is false, the operation is removed from
+	      consideration (as if its associated channel never
+	      becomes ready for sending/receiving).</para>
+	  </listitem>
+	</varlistentry>
+
+	<varlistentry>
+	  <term><varname>form</varname></term>
+	  <listitem>
+	    <para>Evaluated in sequence when the associated clause is
+	      executed.  The values of the evaluation of the last form
+	      of the effective clause become the result of the
+	      macro.</para>
+	  </listitem>
+	</varlistentry>
+	
+	<varlistentry>
+	  <term><varname>timeout</varname></term>
+	  <listitem>
+	    <para>Evaluated to produce the duration, as a non-negative
+	      <ulink url="http://www.lispworks.com/documentation/HyperSpec/Body/t_real.htm#real"><type>REAL</type></ulink>
+	      number of seconds, to wait for an effective operation to
+	      become available before resorting to the
+	      <code>otherwise-clause</code>.  The result may also
+	      be <literal>NIL</literal> to specify no time out.  When
+	      an <code>otherwise-clause</code> exists, the default
+	      time out is 0, meaning that if none of the channels in
+	      the operation-clauses are immediately available, the
+	      <code>otherwise-clause</code> forms are executed
+	      immediately.  When there is
+	      no <code>otherwise-clause</code>, the default time out
+	      is
+	      <literal>NIL</literal>.</para>
+	  </listitem>
+	</varlistentry>
+      </variablelist>
+      
+      <para>It is useful to specify a <code>timeout</code> expression that
+	conditionally evaluates to <literal>NIL</literal>, in order to
+	disable the time out and inhibit the execution of the
+	<code>otherwise-clause</code> (provided that there are channel
+	operations to wait for that haven't been excluded by false
+	conditions).</para>
+      
+      <para>If there are no effective operations (because all the
+	conditions evaluated to false, or because no operations were
+	specified), then the <code>otherwise-clause</code> (if any) is
+	executed immediately (even if the specified time out
+	is <literal>NIL</literal>).</para>
+      
+      <para>Stylistically and for future compatibility, avoid
+	side-effects
+	in <code>channel</code>, <code>value</code>, <code>condition</code>,
+	and <code>timeout</code> expressions.</para>
+    </section>
+    
+    <section id="sec-dynamic_alternation">
+      <title>Dynamic Alternation</title>
+      
+      <para>It is possible to dynamically construct a set of
+	operations to alternate upon.</para>
+      
+      <para>The general procedure is to
+	instantiate <type>OPERATION</type> for each kind of operation
+	you wish to perform.  For sending operations, you will need to
+	give the value to send with <code>:VALUE</code>.  Pass
+	the <type>OPERATION</type> instances, as a list,
+	to <function>OPERATION-ALTERNATE</function>.  <function>OPERATION-ALTERNATE</function>
+	will either immediately execute one of
+	the <type>OPERATION</type> instances, or block until another
+	thread executes an operation which allows one of the given
+	operations to execute.  The selected operation, after having
+	been executed, is returned.  If the selected operation was a
+	receive operation, the value received will available with
+	the <function>VALUE</function> accessor.</para>
+      
+      <para>Please see the documentation in the source code
+	for <function>OPERATION-ALTERNATE</function> and
+	the <type>OPERATION</type> class.</para>
+    </section>
+  </section>
+</article>

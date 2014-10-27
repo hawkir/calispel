@@ -1,0 +1,431 @@
+Calispel
+
+J.P. Larocque
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+Table of Contents
+
+1. Introduction
+
+    1.1. Obtaining Calispel
+    1.2. Copying
+    1.3. Contact Information
+
+2. Examples
+3. Reference
+
+    3.1. The CHANNEL Class
+    3.2. ? and !: Basic I/O Functions
+    3.3. PRI-ALT and FAIR-ALT: Alternation Among Several Operations
+    3.4. Dynamic Alternation
+
+1. Introduction
+
+Calispel is a Common Lisp library for thread-safe message-passing channels, in
+the style of the occam programming language.
+
+Calispel channels let one thread communicate with another, facilitating
+unidirectional communication of any Lisp object. Channels may be unbuffered,
+where a sender waits for a receiver (or vice versa) before either operation can
+continue, or channels may be buffered with flexible policy options.
+
+Because sending and receiving on a channel may block, either operation can time
+out after a specified amount of time.
+
+A syntax for alternation is provided (like ALT in occam, or Unix select()):
+given a sequence of operations, any or all of which may block, alternation
+selects the first operation that doesn't block and executes associated code.
+Alternation can also time out, executing an "otherwise" clause if no operation
+becomes available within a set amount of time.
+
+Many CSP- and occam-style channel libraries offer features like parallel
+execution (i.e. occam PAR). Calispel is a message-passing library, and as such
+leaves the role of threading abstractions and utilities left to be filled by
+perfectly good, complementary libraries such as Bordeaux-Threads and Eager
+Future.
+
+1.1. Obtaining Calispel
+
+The latest version of Calispel, with accompanying documentation, can be found
+at: http://www.thoughtcrime.us/software/calispel/
+
+The most recent release is 0.1, released 2009-10-19. It depends on: jpl-queues
+0.1, cl-jpl-util 0.2, Eager Future 0.1, Bordeaux Threads
+
+  ● calispel-0.1.tar.gz: ASDF package
+  ● calispel-0.1.tar.gz.sign: OpenPGP detached signature
+
+I sign all my software with OpenPGP, key ID 0x80555CED7394F948, fingerprint
+2771 AF53 5D09 BDFB A8D0 BEF3 8055 5CED 7394 F948.
+
+1.2. Copying
+
+The software and this document are licensed under permissive, BSD-like terms,
+copied from the ISC license:
+
+    Copyright © 2009, Jean-Paul Guy Larocque
+
+    Permission to use, copy, modify, and/or distribute this software for any
+    purpose with or without fee is hereby granted, provided that the above
+    copyright notice and this permission notice appear in all copies.
+
+    THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+    WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+    MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR ANY
+    SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+    WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+    ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF OR
+    IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+
+This software was directly derived from "csp.tgz", dated 2006-07-03, and
+published by Roger Peppe. No copyright notice giving attribution to Roger Peppe
+or any specific licensing terms seem to have been included in that version.
+
+That software was derived from "channel.c" of Plan 9 libthread:
+
+    Copyright © 2005 Russ Cox, Massachusetts Institute of Technology
+
+    Permission is hereby granted, free of charge, to any person obtaining a
+    copy of this software and associated documentation files (the "Software"),
+    to deal in the Software without restriction, including without limitation
+    the rights to use, copy, modify, merge, publish, distribute, sublicense,
+    and/or sell copies of the Software, and to permit persons to whom the
+    Software is furnished to do so, subject to the following conditions:
+
+    The above copyright notice and this permission notice shall be included in
+    all copies or substantial portions of the Software.
+
+    THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+    IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+    FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+    AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+    LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
+    FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
+    DEALINGS IN THE SOFTWARE.
+
+That software contains parts derived from an earlier library by Rob Pike, Sape
+Mullender, and Russ Cox:
+
+    Copyright © 2003 by Lucent Technologies.
+
+    Permission to use, copy, modify, and distribute this software for any
+    purpose without fee is hereby granted, provided that this entire notice is
+    included in all copies of any software which is or includes a copy or
+    modification of this software and in all copies of the supporting
+    documentation for such software.
+
+    THIS SOFTWARE IS BEING PROVIDED "AS IS", WITHOUT ANY EXPRESS OR IMPLIED
+    WARRANTY. IN PARTICULAR, NEITHER THE AUTHORS NOR LUCENT TECHNOLOGIES MAKE
+    ANY REPRESENTATION OR WARRANTY OF ANY KIND CONCERNING THE MERCHANTABILITY
+    OF THIS SOFTWARE OR ITS FITNESS FOR ANY PARTICULAR PURPOSE.
+
+1.3. Contact Information
+
+The author welcomes feedback, questions, help requests, and bug reports via
+e-mail: J.P. Larocque <jpl-software at thoughtcrime.us>
+
+2. Examples
+
+Create a channel with no buffering:
+
+(defparameter *chan*
+  (make-instance 'calispel:channel))
+
+In another thread, sleep for 1 second, then send the number 42 to the channel.
+In the current thread, receive from the channel. At first, there will be no
+value available, so ? will wait until the other thread sends the value.
+
+(progn
+  (eager-future:pexec
+    (sleep 1)
+    (calispel:! *chan* 42))
+  (calispel:? *chan*))
+=> 42
+   T
+
+(42 is the value received, and T indicates that the receive was successful—it
+did not time out.)
+
+Sending to the channel will also block without a waiting receiver, because
+channels are unbuffered by default. This will attempt to send to the channel,
+then time out after 2 seconds:
+
+(calispel:! *chan* 'foo 2)
+=> NIL
+
+(NIL indicates that the send was not successful—it timed out.)
+
+Create a new channel that is buffered:
+
+(defparameter *chan*
+  (make-instance 'calispel:channel
+                 :buffer (make-instance 'jpl-queues:bounded-fifo-queue :capacity 2)))
+
+This channel will accept up to two values that have not yet been received
+before sends will block:
+
+(loop for i from 1
+      while (calispel:! *chan* i 0)
+      finally (format t "~&Stopped before ~:R value.~&" i))
+>> Stopped before third value.
+
+Now let's print them back out:
+
+(loop
+  (multiple-value-bind (value success?)
+      (calispel:? *chan* 0)
+    (when success?
+      (format t "~&Value: ~S~&" value))
+    (unless success?
+      (return))))
+>> Value: 1
+Value: 2
+
+Suppose that we have many channels that we're interested in receiving from or
+sending to. We can use alternation to select the first operation that is
+available, and then perform some action associated with the operation:
+
+(let ((chan1 (make-instance 'calispel:channel)) ; chan1 goes unused
+      (chan2 (make-instance 'calispel:channel)))
+  (eager-future:pexec
+    (calispel:! chan2 42))
+  (calispel:pri-alt
+    ((calispel:? chan1)
+     ;; Nothing is sent to CHAN1, so it can't be ready.
+     (format t "~&Got a value from CHAN1, but that should never happen.~&"))
+    ((calispel:? chan2 value)
+     ;; CHAN2 has either had something sent to it, or it soon will,
+     ;; so this will execute.
+     (format t "~&Got value from CHAN2: ~S~&" value))))
+>> Got value from CHAN2: 42
+
+What if there's more than one operation that is immediately possible? PRI-ALT
+chooses the first one available...
+
+(let ((chan1 (make-instance 'calispel:channel))
+      (chan2 (make-instance 'calispel:channel)))
+  (eager-future:pexec
+    (calispel:! chan1 'foo))
+  (eager-future:pexec
+    (calispel:! chan2 'bar))
+  (sleep 1) ; Wait for both CHAN1 and CHAN2 to become ready.
+  (calispel:pri-alt
+    ((calispel:? chan1 value)
+     (format t "~&Got value from CHAN1: ~S~&" value))
+    ((calispel:? chan2 value)
+     (format t "~&Got value from CHAN2: ~S~&" value))))
+>> Got value from CHAN1: FOO
+
+...whereas FAIR-ALT chooses any of the available operations:
+
+(let ((chan1 (make-instance 'calispel:channel))
+      (chan2 (make-instance 'calispel:channel)))
+  (eager-future:pexec
+    (calispel:! chan1 'foo))
+  (eager-future:pexec
+    (calispel:! chan2 'bar))
+  (sleep 1) ; Wait for both CHAN1 and CHAN2 to become ready.
+  (calispel:fair-alt
+    ((calispel:? chan1 value)
+     (format t "~&Got value from CHAN1: ~S~&" value))
+    ((calispel:? chan2 value)
+     (format t "~&Got value from CHAN2: ~S~&" value))))
+>> Got value from CHAN1: FOO
+(or, determined randomly)
+>> Got value from CHAN2: BAR
+
+Just like ? and !, PRI-ALT and FAIR-ALT allow time outs to be specified. An
+OTHERWISE clause is executed if no operation can be immediately performed,
+effectively putting a time out of 0 on all the operations:
+
+(let ((chan1 (make-instance 'calispel:channel))
+      (chan2 (make-instance 'calispel:channel)))
+  (eager-future:pexec
+    (sleep 1)
+    (calispel:! chan1 'foo))
+  (calispel:pri-alt
+    ((calispel:? chan1 value)
+     (format t "~&Got value from CHAN1: ~S~&" value))
+    ((calispel:? chan2 value)
+     (format t "~&Got value from CHAN2: ~S~&" value))
+    (otherwise (format t "~&Timed-out.~&"))))
+>> Timed-out.
+
+You can also wait up to a certain amount of time before executing the OTHERWISE
+clause:
+
+(let ((chan1 (make-instance 'calispel:channel))
+      (chan2 (make-instance 'calispel:channel)))
+  (eager-future:pexec
+    (sleep 1)
+    (calispel:! chan1 'foo))
+  (calispel:pri-alt
+    ((calispel:? chan1 value)
+     (format t "~&Got value from CHAN1: ~S~&" value))
+    ((calispel:? chan2 value)
+     (format t "~&Got value from CHAN2: ~S~&" value))
+    ((otherwise :timeout 5)
+     (format t "~&Timed-out.~&"))))
+>> Got value from CHAN1: FOO
+
+(Try increasing the SLEEP delay to 6 to see that the PRI-ALT will still time
+out.)
+
+3. Reference
+
+3.1. The CHANNEL Class
+
+Syntax. 
+
+(MAKE-INSTANCE 'CHANNEL &key BUFFER)
+=> (A CHANNEL instance.)
+
+A channel is a medium that communicates messages from one thread to another.
+
+All channels have a buffer. The default buffer doesn't do anything—it's always
+full and always empty. It has no storage.
+
+BUFFER specifies the jpl-queues queue to buffer messages with.
+
+Sending to a channel blocks when there is no other thread waiting to receive
+from it and there is no room in the buffer (i.e. JPL-QUEUES:FULL? returns
+true). Receiving from a channel blocks when there is no other thread waiting to
+send to it and there are no objects in the buffer (i.e. JPL-QUEUES:EMPTY?
+returns true).
+
+To improve throughput with better parallelism, a meaningful buffer is
+recommended so that threads can perform useful work instead of waiting on other
+threads. Any jpl-queues queue may be used, but note:
+
+  ● The queue need not be "synchronized" (an instance of
+    JPL-QUEUES:SYNCHRONIZED-QUEUE): Calispel has its own synchronization, so
+    external synchronization will only add overhead.
+  ● The queue may not be shared with any other channels or be used for anything
+    else, even if it's "synchronized." (Pedantic exception: if the queue
+    strictly has no state, then it doesn't matter if it's shared. The default
+    "null" queue has no state, and it is shared.)
+
+3.2. ? and !: Basic I/O Functions
+
+Syntax. 
+
+(? CHANNEL &optional TIMEOUT)
+=> VALUE
+   RECEIVED-OK?
+
+(! CHANNEL VALUE &optional TIMEOUT)
+=> SENT-OK?
+
+? receives a value from CHANNEL, waiting up to TIMEOUT seconds (a non-negative
+REAL number; or indefinitely if unspecified or NIL). If a value can be received
+before the time out, the value and T (indicating success) are returned.
+Otherwise, NIL and NIL (indicating failure) are returned.
+
+! sends VALUE to CHANNEL, waiting up to TIMEOUT seconds (a non-negative REAL
+number; or indefinitely if unspecified or NIL). If the value can be sent before
+the time out, T (indicating success) is returned. Otherwise, NIL (indicating
+failure) is returned.
+
+3.3. PRI-ALT and FAIR-ALT: Alternation Among Several Operations
+
+Syntax. 
+
+(PRI-ALT operation-clause* [otherwise-clause])
+(FAIR-ALT operation-clause* [otherwise-clause])
+=> (For either macro: the result of the final evaluated form,
+    or no values if no clause was executed.)
+
+operation-clause ::= (operation form*)
+otherwise-clause ::= ({otherwise | (otherwise [:timeout timeout])} form*)
+operation        ::= (? channel [lambda-list [condition]]) ; receive
+                   | (! channel value [condition])         ; send
+
+Performs one of the given channel operations, choosing one from the set of
+operations that first becomes available, then evaluates each of the forms
+associated with the selected operation. If no operation can immediately be
+made, waits until an operation is available (optionally up to a given timeout).
+
+When there are multiple operations that can be immediately carried-out, PRI-ALT
+selects the first one listed, whereas FAIR-ALT chooses one at random.
+
+channel
+
+    Evaluated to produce a CHANNEL to send to or receive from. The channel
+    forms associated with operations that do not pass the condition are not
+    evaluated.
+
+lambda-list
+
+    Either a symbol naming a variable to be bound to the value received from
+    the channel, or a destructuring lambda list^[1] naming a set of variables
+    to be bound to the destructured value received from the channel. The
+    bindings are visible to the associated forms. If the value cannot be
+    destructured according to the lambda list, an error is signalled. Note that
+    multiple receive clauses for the same channel with different destructuring
+    lambda-lists cannot be used for pattern matching.
+
+value
+
+    An expression whose primary value is used as the message to send to the
+    channel. All value expressions are evaluated before selecting an operation,
+    except for those associated with operations that do not pass the condition.
+
+condition
+
+    Evaluated to produce a generalized boolean indicating whether the
+    associated operation-clause should receive further consideration. When
+    condition is not given or its resulting value is true, the associated
+    operation is kept for consideration. When the resulting value is false, the
+    operation is removed from consideration (as if its associated channel never
+    becomes ready for sending/receiving).
+
+form
+
+    Evaluated in sequence when the associated clause is executed. The values of
+    the evaluation of the last form of the effective clause become the result
+    of the macro.
+
+timeout
+
+    Evaluated to produce the duration, as a non-negative REAL number of
+    seconds, to wait for an effective operation to become available before
+    resorting to the otherwise-clause. The result may also be NIL to specify no
+    time out. When an otherwise-clause exists, the default time out is 0,
+    meaning that if none of the channels in the operation-clauses are
+    immediately available, the otherwise-clause forms are executed immediately.
+    When there is no otherwise-clause, the default time out is NIL.
+
+It is useful to specify a timeout expression that conditionally evaluates to
+NIL, in order to disable the time out and inhibit the execution of the
+otherwise-clause (provided that there are channel operations to wait for that
+haven't been excluded by false conditions).
+
+If there are no effective operations (because all the conditions evaluated to
+false, or because no operations were specified), then the otherwise-clause (if
+any) is executed immediately (even if the specified time out is NIL).
+
+Stylistically and for future compatibility, avoid side-effects in channel,
+value, condition, and timeout expressions.
+
+3.4. Dynamic Alternation
+
+It is possible to dynamically construct a set of operations to alternate upon.
+
+The general procedure is to instantiate OPERATION for each kind of operation
+you wish to perform. For sending operations, you will need to give the value to
+send with :VALUE. Pass the OPERATION instances, as a list, to
+OPERATION-ALTERNATE. OPERATION-ALTERNATE will either immediately execute one of
+the OPERATION instances, or block until another thread executes an operation
+which allows one of the given operations to execute. The selected operation,
+after having been executed, is returned. If the selected operation was a
+receive operation, the value received will available with the VALUE accessor.
+
+Please see the documentation in the source code for OPERATION-ALTERNATE and the
+OPERATION class.
+
+
+━━━━━━━━━━━━━━
+
+^[1] See: Common Lisp HyperSpec, sec. 3.4.5 Destructuring Lambda Lists
+

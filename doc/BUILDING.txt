@@ -1,0 +1,5 @@
+To build the documentation on Debian, install "docbook-xsl" and "w3m".
+
+For other systems, you'll need to install the equivalent packages or
+get the stylesheets and w3m yourself, and then adjust the path of the
+import in html.xsl.
