@@ -22,14 +22,17 @@ the occam programming language."
 	       ;; The null queue.
 	       (:file "null-queue"
                 :depends-on ("package"))
-	       ;; Testing.
-	       ;; (:file "test"
-	       ;;  :depends-on ("core"
-	       ;;  	     "basic"
-	       ;;  	     "alt"
-	       ;;  	     "package"))
-	       ;; Package definition.
                (:file "package"))
+;;	       Package definition.
   :depends-on ("jpl-queues"
 	       "bordeaux-threads"
 	       (:version "jpl-util" "0.2")))
+
+(asdf:defsystem "calispel-test"
+  :version "0.1"
+  :maintainer "Rick Venn (richard.venn@gmail.com)"
+  :author "J.P. Larocque, et al. (see COPYRIGHT.txt)"
+  :licence "ISC-style and other permissive (see COPYRIGHT.txt)"
+  :description "Test suite for Calispel"
+  :depends-on (:calispel :eager-future2)
+  :components ((:file "test")))

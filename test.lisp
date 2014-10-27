@@ -1,4 +1,7 @@
-(in-package #:calispel)
+(defpackage #:calispel-test
+  (:use #:common-lisp #:calispel #:jpl-queues))
+
+(in-package #:calispel-test)
 
 (defun divide-vector (vector count)
   "Returns a vector of COUNT vectors with elements from VECTOR.  The
@@ -314,10 +317,10 @@ note that these values are per-channel-test, not globally."
   (declare (ignore message-count reader-count writer-count))
   (let ((futures (loop repeat channel-count
 		       collecting (let ((channel (funcall make-channel-fn)))
-				    (eager-future:pexec
+				    (eager-future2:pexec
 				      (apply #'test-channel channel
 					     :allow-other-keys t kw-args))))))
     ;; YIELD them to block until all the TEST-CHANNEL calls return,
     ;; and to check for caught errors.
     (dolist (future futures)
-      (eager-future:yield future))))
+      (eager-future2:yield future))))
